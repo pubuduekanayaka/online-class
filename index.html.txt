@@ -1,0 +1,297 @@
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ')
+      ? header.slice(7)
+      : (req.query && req.query.token) || null;   // allows ?token=... for file downloads (CSV)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Dashboard — Sanath Ekanayaka Mathematics Academy</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <nav class="navbar"><div class="container">
+    <a class="brand" href="/"><span class="sigma">∑</span> Mathematics Academy</a>
+    <button class="btn btn-outline btn-sm" id="logoutBtn">Logout</button>
+  </div></nav>
+
+  <div class="dash">
+    <aside class="dash-side">
+      <div class="who"><strong id="whoName">Student</strong><span id="whoMeta" style="font-size:.85rem"></span><br /><span id="payBadge"></span></div>
+      <nav>
+        <a data-panel="classes" class="active">📅 Live Classes</a>
+        <a data-panel="recordings">🎬 Recordings &amp; Notes</a>
+        <a data-panel="exams">📝 Exams &amp; Quizzes</a>
+        <a data-panel="results">🏆 My Results</a>
+        <a data-panel="announcements">📢 Announcements</a>
+      </nav>
+    </aside>
+
+    <main class="dash-main">
+      <div class="alert" id="dashAlert"></div>
+      <div class="notice-banner" id="payNotice" style="display:none"></div>
+      <div class="exam-timer" id="examTimer" style="display:none"></div>
+
+      <section class="panel active" id="panel-classes">
+        <h1>Upcoming Live Classes</h1>
+        <div class="grid" id="classesList"></div>
+        <h1 style="margin-top:2rem">My Attempts</h1>
+        <div id="attemptsList"></div>
+      </section>
+
+      <section class="panel" id="panel-recordings">
+        <h1>Recorded Lessons &amp; Materials</h1>
+        <div class="grid" id="recordingsList"></div>
+      </section>
+
+      <section class="panel" id="panel-exams">
+        <h1>Examinations &amp; MCQ Quizzes</h1>
+        <div class="grid" id="examsList"></div>
+      </section>
+
+      <section class="panel" id="panel-exam">
+        <h1 id="examTitle"></h1>
+        <p class="meta">Select one answer per question. The timer submits automatically when time expires.</p>
+        <div id="examBody"></div>
+      </section>
+
+      <section class="panel" id="panel-results">
+        <h1>Published Results</h1>
+        <div id="resultsList"></div>
+      </section>
+
+      <section class="panel" id="panel-announcements">
+        <h1>Announcements &amp; Notices</h1>
+        <div class="grid" id="annList"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="viewerModal">
+    <div class="modal">
+      <h3 id="viewerTitle"></h3>
+      <div id="viewerBody"></div>
+      <div class="card-actions"><button class="btn btn-outline" id="viewerClose">Close</button></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — Sanath Ekanayaka Mathematics Academy</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <nav class="navbar"><div class="container">
+    <a class="brand" href="/"><span class="sigma">∑</span> Admin Panel</a>
+    <button class="btn btn-outline btn-sm" id="logoutBtn">Logout</button>
+  </div></nav>
+
+  <div class="dash">
+    <aside class="dash-side">
+      <div class="who"><strong id="whoName">Admin</strong></div>
+      <nav>
+        <a data-panel="overview" class="active">📊 Overview</a>
+        <a data-panel="students">👨‍🎓 Students</a>
+        <a data-panel="payments">💳 Payments</a>
+        <a data-panel="classes">📅 Classes</a>
+        <a data-panel="recordings">🎬 Recordings</a>
+        <a data-panel="exams">📝 Exams</a>
+        <a data-panel="quizzes">🧩 Quizzes</a>
+        <a data-panel="results">🏆 Results</a>
+        <a data-panel="announcements">📢 Announcements</a>
+        <a data-panel="content">🌐 Website Content</a>
+        <a data-panel="audit">🛡️ Audit Log</a>
+      </nav>
+    </aside>
+
+    <main class="dash-main">
+      <div class="alert" id="adminAlert"></div>
+
+      <section class="panel active" id="panel-overview">
+        <h1>Dashboard Overview</h1>
+        <div class="stat-grid" id="statGrid"></div>
+        <h1 style="font-size:1.2rem">Recent Examination Results</h1>
+        <div id="recentResults"></div>
+      </section>
+
+      <section class="panel" id="panel-students">
+        <h1>Student Management</h1>
+        <div class="toolbar">
+          <input id="stSearch" placeholder="Search name or phone…" />
+          <select id="stSearchGrade"><option value="">All grades</option></select>
+          <button class="btn btn-primary btn-sm" id="stSearchBtn">Search</button>
+        </div>
+        <div id="studentsTable"></div>
+      </section>
+
+      <section class="panel" id="panel-payments">
+        <h1>Payment Management</h1>
+        <div class="toolbar">
+          <select id="payFilter"><option value="">All statuses</option><option>PAID</option><option>PENDING</option><option>UNPAID</option></select>
+        </div>
+        <div id="paymentsTable"></div>
+      </section>
+
+      <section class="panel" id="panel-classes">
+        <h1>Class Management</h1>
+        <div class="card" style="margin-bottom:1.5rem">
+          <form id="classForm">
+            <input type="hidden" id="clId" />
+            <div class="form-row">
+              <div class="field"><label>Title *</label><input id="clTitle" required /></div>
+              <div class="field"><label>Grade *</label><select id="clGrade" required></select></div>
+            </div>
+            <div class="form-row">
+              <div class="field"><label>Date &amp; time *</label><input id="clWhen" type="datetime-local" required /></div>
+              <div class="field"><label>Zoom URL</label><input id="clZoom" placeholder="https://zoom.us/j/…" /></div>
+            </div>
+            <div class="field"><label>Description</label><textarea id="clDesc" rows="2"></textarea></div>
+            <label style="font-size:.9rem"><input type="checkbox" id="clPub" checked /> Published</label>
+            <div class="card-actions">
+              <button class="btn btn-primary" type="submit">Save Class</button>
+              <button class="btn btn-outline" type="button" id="clClear">Clear</button>
+            </div>
+          </form>
+        </div>
+        <div id="classesTable"></div>
+      </section>
+
+      <section class="panel" id="panel-recordings">
+        <h1>Recording / Material Management</h1>
+        <div class="card" style="margin-bottom:1.5rem">
+          <form id="recForm">
+            <input type="hidden" id="recId" />
+            <div class="form-row">
+              <div class="field"><label>Title *</label><input id="recTitle" required /></div>
+              <div class="field"><label>Grade *</label><select id="recGrade" required></select></div>
+            </div>
+            <div class="form-row">
+              <div class="field"><label>Type *</label><select id="recType"><option value="video">Video</option><option value="pdf">PDF</option><option value="note">Note</option></select></div>
+              <div class="field"><label>Topic</label><input id="recTopic" /></div>
+            </div>
+            <div class="field"><label>File URL (https) *</label><input id="recUrl" required placeholder="https://…" /></div>
+            <div class="field"><label>Thumbnail URL</label><input id="recThumb" /></div>
+            <div class="field"><label>Description</label><textarea id="recDesc" rows="2"></textarea></div>
+            <label style="font-size:.9rem"><input type="checkbox" id="recPub" checked /> Published</label>
+            <div class="card-actions">
+              <button class="btn btn-primary" type="submit">Save Recording</button>
+              <button class="btn btn-outline" type="button" id="recClear">Clear</button>
+            </div>
+          </form>
+        </div>
+        <div id="recordingsTable"></div>
+      </section>
+
+      <section class="panel" id="panel-exams">
+        <h1>Examination Management</h1>
+        <div class="card" style="margin-bottom:1.5rem">
+          <form id="examForm">
+            <div class="form-row">
+              <div class="field"><label>Title *</label><input id="exTitle" required /></div>
+              <div class="field"><label>Grade *</label><select id="exGrade" required></select></div>
+            </div>
+            <div class="field"><label>Topic</label><input id="exTopic" /></div>
+            <div class="field"><label>Instructions</label><textarea id="exInstr" rows="2"></textarea></div>
+            <div class="form-row">
+              <div class="field"><label>Starts at</label><input id="exStart" type="datetime-local" /></div>
+              <div class="field"><label>Ends at</label><input id="exEnd" type="datetime-local" /></div>
+            </div>
+            <div class="form-row">
+              <div class="field"><label>Time limit (minutes, blank = none)</label><input id="exLimit" type="number" min="1" /></div>
+              <div class="field"><label>&nbsp;</label>
+                <label style="font-size:.9rem"><input type="checkbox" id="exPub" checked /> Published</label>
+                <label style="font-size:.9rem;margin-left:1rem"><input type="checkbox" id="exResPub" /> Results published</label>
+              </div>
+            </div>
+            <button class="btn btn-primary" type="submit">Create Examination</button>
+          </form>
+        </div>
+        <div id="examsTable"></div>
+      </section>
+
+      <section class="panel" id="panel-quizzes">
+        <h1>MCQ Quiz Management</h1>
+        <p class="meta">Quizzes share the form above — use the "Create Examination" form while on this tab (type is set automatically). Quiz results publish immediately; questions can be randomized by shuffling sort order.</p>
+        <div id="quizzesTable"></div>
+      </section>
+
+      <section class="panel" id="panel-results">
+        <h1>Examination Results</h1>
+        <div class="toolbar">
+          <select id="resGrade"><option value="">All grades</option></select>
+          <button class="btn btn-primary btn-sm" id="resFilterBtn">Filter</button>
+          <button class="btn btn-outline btn-sm" id="csvBtn">Export CSV</button>
+        </div>
+        <div id="resultsTable"></div>
+      </section>
+
+      <section class="panel" id="panel-announcements">
+        <h1>Announcements</h1>
+        <div class="card" style="margin-bottom:1.5rem">
+          <form id="anForm">
+            <div class="form-row">
+              <div class="field"><label>Title *</label><input id="anTitle" required /></div>
+              <div class="field"><label>Audience</label><select id="anAudience"><option value="students">Students</option><option value="admins">Admins</option></select></div>
+            </div>
+            <div class="field"><label>Grade (blank = all grades)</label><select id="anGrade"><option value="">All grades</option></select></div>
+            <div class="field"><label>Message *</label><textarea id="anBody" rows="3" required></textarea></div>
+            <button class="btn btn-primary" type="submit">Post Announcement</button>
+          </form>
+        </div>
+        <div id="annTable"></div>
+      </section>
+
+      <section class="panel" id="panel-content">
+        <h1>Website Content Management</h1>
+        <p class="meta">Edit home page text, teacher biography, photo URL, contact details and payment instructions. Changes appear on the home page immediately.</p>
+        <form id="contentForm"></form>
+      </section>
+
+      <section class="panel" id="panel-audit">
+        <h1>Admin Audit Log</h1>
+        <div id="auditTable"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Question bank modal -->
+  <div class="modal-backdrop" id="qModal">
+    <div class="modal">
+      <h3 id="qModalTitle"></h3>
+      <div id="qList"></div>
+      <h3 style="margin-top:1.4rem">Add Question</h3>
+      <form id="qForm">
+        <div class="field"><label>Question *</label><textarea id="qText" rows="2" required></textarea></div>
+        <div class="field"><label>Marks</label><input id="qMarks" type="number" min="1" value="1" /></div>
+        <div class="field"><label>Answer options (mark the correct one) *</label><div id="qOptions"></div>
+          <button class="btn btn-outline btn-sm" type="button" id="qAddOption">+ Add option</button></div>
+        <div class="field"><label>Explanation (optional)</label><textarea id="qExpl" rows="2"></textarea></div>
+        <div class="card-actions">
+          <button class="btn btn-primary" type="submit">Add Question</button>
+          <button class="btn btn-outline" type="button" id="qClose">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Attempts modal -->
+  <div class="modal-backdrop" id="attemptsModal">
+    <div class="modal">
+      <h3>Student Attempts</h3>
+      <div id="attemptsBody"></div>
+      <div class="card-actions"><button class="btn btn-outline" id="attemptsClose">Close</button></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>
